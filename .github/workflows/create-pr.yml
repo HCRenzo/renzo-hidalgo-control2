@@ -21,16 +21,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          base: ${{ github.event.repository.default_branch }}
-          branch: ${{ github.ref_name }}
-          title: "PR automático: ${{ github.ref_name }}"
-          body: |
-            Se creó este Pull Request automáticamente porque el commit incluyó la palabra `MLOPS`.
+      - name: Create Pull Request from pushed branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
 
-            - Rama origen: `${{ github.ref_name }}`
-            - Rama destino: `${{ github.event.repository.default_branch }}`
-            - Commit: `${{ github.event.head_commit.message }}`
+          if gh pr list \
+            --head "${GITHUB_REF_NAME}" \
+            --base "${{ github.event.repository.default_branch }}" \
+            --json number \
+            --limit 1 | grep -q '"number"'; then
+            echo "Ya existe un PR para la rama ${GITHUB_REF_NAME}."
+            exit 0
+          fi
+
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "${GITHUB_REF_NAME}" \
+            --title "PR automático: ${GITHUB_REF_NAME}" \
+            --body "Se creó este Pull Request automáticamente porque el commit incluyó la palabra MLOPS."
